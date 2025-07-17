@@ -1,0 +1,67 @@
+{
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "telegramTrigger",
+      "name": "Telegram Trigger",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1,
+      "position": [200, 300],
+      "credentials": {
+        "telegramApi": {
+          "id": "your-telegram-credentials-id",
+          "name": "Your Telegram Credentials"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "functionCode": "const chatId = $json.message.chat.id;\nconst messageText = $json.message.text;\n\nconst data = $workflow.staticData;\n\nif (!data.userState) {\n  data.userState = {};\n}\n\nconst state = data.userState[chatId] || {};\n\nif (messageText === '/cari') {\n  data.userState[chatId] = { step: 'awaiting_name' };\n  return [{ json: { reply: 'Masukkan nama yang ingin dicari:', chatId } }];\n}\n\nif (state.step === 'awaiting_name') {\n  state.name = messageText;\n  state.step = 'awaiting_dob';\n  data.userState[chatId] = state;\n  return [{ json: { reply: 'Masukkan tanggal lahir (dd-mm-yyyy):', chatId } }];\n}\n\nif (state.step === 'awaiting_dob') {\n  state.dob = messageText;\n  state.step = 'awaiting_city';\n  data.userState[chatId] = state;\n  return [{ json: { reply: 'Masukkan kota domisili:', chatId } }];\n}\n\nif (state.step === 'awaiting_city') {\n  state.city = messageText;\n  state.step = 'done';\n  data.userState[chatId] = state;\n\n  const summary = `Berikut data Anda:\\nNama: ${state.name}\\nTanggal Lahir: ${state.dob}\\nKota: ${state.city}`;\n\n  return [{ json: { reply: summary, chatId } }];\n}\n\nreturn [{ json: { reply: 'Ketik /cari untuk memulai.', chatId } }];"
+      },
+      "name": "Handle State",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [400, 300]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chatId }}",
+        "text": "={{ $json.reply }}"
+      },
+      "name": "Send Message",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [600, 300],
+      "credentials": {
+        "telegramApi": {
+          "id": "your-telegram-credentials-id",
+          "name": "Your Telegram Credentials"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "Handle State",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Handle State": {
+      "main": [
+        [
+          {
+            "node": "Send Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}
